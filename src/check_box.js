@@ -1,14 +1,25 @@
 import 'rc-tree/assets/index.css';
 import React from 'react';
 import ReactDOM from 'react-dom';
+import $ from 'jquery';
+
 import Tree, { TreeNode } from 'rc-tree';
 
 function generateTreeNodes(treeNode) {
   const arr = [];
   const key = treeNode.props.eventKey;
-  for (let i = 0; i < 3; i++) {
-    arr.push({ name: `leaf ${key}-${i}`, key: `${key}-${i}` });
-  }
+  $.ajax({
+   url:"http://indiabiodiversity.org/taxon/listHierarchy",
+   data:{
+      classSystem:265799,
+      id:key
+   },
+   success:(data)=>{
+     data.map((item)=>{
+         arr.push({ text:item.text, id: item.id });
+     })
+ }
+})
   return arr;
 }
 
@@ -30,11 +41,16 @@ function setLeaf(treeData, curKey, level) {
   loopLeaf(treeData, level + 1);
 }
 
+
 function getNewTreeData(treeData, curKey, child, level) {
+
+  //console.log("treeData",treeData,"curKey",curKey,"child",child,"level",level);
+
   const loop = (data) => {
-    if (level < 1 || curKey.length - 3 > level * 2) return;
+  //  if (level < 1 || curKey.length - 3 > level * 2) return;
     data.forEach((item) => {
-      if (curKey.indexOf(item.key) === 0) {
+    //  console.log(data)
+      if (curKey.indexOf(item.id) === 0) {
         if (item.children) {
           loop(item.children);
         } else {
@@ -43,8 +59,9 @@ function getNewTreeData(treeData, curKey, child, level) {
       }
     });
   };
+
   loop(treeData);
-  setLeaf(treeData, curKey, level);
+  //setLeaf(treeData, curKey, level);
 }
 
 const Demo = React.createClass({
@@ -56,23 +73,25 @@ const Demo = React.createClass({
     };
   },
   componentDidMount() {
+
     setTimeout(() => {
-      this.setState({
-        treeData: [
-          { name: 'pNode 01', key: '0-0' },
-          { name: 'pNode 02', key: '0-1' },
-          { name: 'pNode 04', key: '0-3' },
-          { name: 'pNode 03', key: '0-2', isLeaf: true },
-        ],
-        checkedKeys: ['0-0'],
-      });
-    }, 100);
+      $.ajax({
+       url:"http://indiabiodiversity.org/taxon/listHierarchy?classSystem=265799",
+       success:(data)=>{
+
+         this.setState({
+           treeData:data,
+           checkedKeys: ['0-0'],
+         })
+     }
+   })
+ }, 100);
   },
   onSelect(info) {
-    console.log('selected', info);
+    console.log('selected',info);
   },
   onCheck(checkedKeys) {
-    console.log(checkedKeys);
+    console.log("check");
     this.setState({
       checkedKeys,
     });
@@ -81,40 +100,38 @@ const Demo = React.createClass({
     return new Promise((resolve) => {
       setTimeout(() => {
         const treeData = [...this.state.treeData];
-        getNewTreeData(treeData, treeNode.props.eventKey, generateTreeNodes(treeNode), 3);
-        this.setState({ treeData });
+        getNewTreeData(treeData, treeNode.props.eventKey, generateTreeNodes(treeNode),10);
+
+          this.setState({
+            treeData
+          })
         resolve();
-      }, 500);
+      }, 1500);
     });
   },
-
   render() {
-
     const loop = (data) => {
       return data.map((item) => {
         if (item.children) {
-          return <TreeNode title={item.name} key={item.key}>{loop(item.children)}</TreeNode>;
+          return  <TreeNode title={item.text} key={item.id}>{loop(item.children)}</TreeNode>;
         }
         return (
-          <TreeNode title={item.name} key={item.key} isLeaf={item.isLeaf}
-            disabled={item.key === '0-0-0'}
-          />
+          <TreeNode title={item.text} key={item.id}  />
         );
       });
     };
-
     const treeNodes = loop(this.state.treeData);
-
     return (
-      <div>
-        <h2>dynamic render</h2>
+        <div className="pre-scrollable">
+        <h2>Taxon Browser</h2>
         <Tree
           onSelect={this.onSelect}
           checkable onCheck={this.onCheck} checkedKeys={this.state.checkedKeys}
           loadData={this.onLoadData}
         >
-          {treeNodes}
+            {treeNodes}
         </Tree>
+
       </div>
     );
   }
